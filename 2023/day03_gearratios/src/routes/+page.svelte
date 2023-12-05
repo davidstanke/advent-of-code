@@ -1,6 +1,8 @@
 <script>
 	let answer;
-	let input = `467..114..
+	let daves_input_first_two_lines = `................................................965..583........389.................307.................512......................395.....387
+........................#....374...382....250...*..........737*....*896.395...........*....................$.........................#......`;
+	let sample_input = `467..114..
 ...*......
 ..35..633.
 ......#...
@@ -9,15 +11,16 @@
 ..592.....
 ......755.
 ...$.*....
-.664.598..`;
-	let data_grid = [];
-	let part_candidates = []; // each entrx: ['value','y','x','is_part']
+.664.598..`
+    let input = daves_input_first_two_lines
+    let data_grid = [];
+	let max_x, max_y; // convenience variables to define the size of the data_grid
 
 	let parse_input_to_grid = () => {
 		data_grid = [];
-		input.split('\n').forEach((row, x) => {
+		input.split('\n').forEach((row, y) => {
 			let this_row_cells = [];
-			row.split('').forEach((value, y) => {
+			row.split('').forEach((value, x) => {
 				let this_cell = {
 					value: value,
 					y: y,
@@ -27,16 +30,18 @@
 					element_type: 'unknown'
 				};
 
-				this_cell.element_type = determine_element_type(this_cell);
+				this_cell.element_type = element_type(this_cell);
 
 				this_row_cells = [...this_row_cells, this_cell];
 			});
 			data_grid = [...data_grid, this_row_cells];
+			max_x = data_grid[0].length - 1;
+			max_y = data_grid.length - 1;
 		});
 	};
 
-	let determine_element_type = (cell) => {
-		if (parseInt(cell.value)) {
+	let element_type = (cell) => {
+		if (cell.value == 0 || parseInt(cell.value)) {
 			return 'candidate';
 		} else if (cell.value == '.') {
 			return 'spacer';
@@ -45,136 +50,147 @@
 		}
 	};
 
-	let find_part_candidates = () => {
-		input.split('\n').forEach((data_row, x) => {
-			let this_row = data_row;
+	const sleep = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
 
-			// identify all numbers -- these are candidates which max be part nos.
-			while (this_row.length) {
-				if (parseInt(this_row)) {
-					let candidate_value = parseInt(this_row);
-
-					let y = data_row.indexOf(candidate_value);
-					part_candidates.push([candidate_value, y, x, false]);
-
-					this_row = this_row.substring(candidate_value.toString().length);
-				} else {
-					this_row = this_row.substring(1);
-				}
+	const find_parts = () => {
+		for (let y = data_grid.length - 1; y >= 0; y--) {
+			for (let x = data_grid[0].length - 1; x >= 0; x--) {
+				test_for_part(data_grid[y][x]);
 			}
-		});
+		}
 	};
 
-	let test_part_candidates = () => {
-		part_candidates.forEach((candidate, index) => {
-			// loop across digits of candidate
-			//console.log(candidate);
-			for (let i = 0; i < candidate[0].toString().length; i++) {
-				let this_x = candidate[2];
-				let this_y = candidate[1] + i;
-				let this_cell = data_grid[this_x][this_y];
-				// this_cell.element_type='part'
-				// this_cell.element_type='non-part'
-				// console.log(this_cell_data);
+	const test_for_part = async (cell) => {
+		let { value, y, x, is_part, dom_element, element_type } = cell;
 
-				// for each digit of candidate ...
-				// ...look 'right'
-				if (this_y < data_grid[0].length - 1) {
-					let cell_right = data_grid[this_x][this_y + 1];
-					if (cell_right.element_type == 'symbol') {
-						candidate[3] = true;
-					}
-				}
+		if (cell.element_type == 'candidate') {
+			let target_cell;
 
-				// ...look 'up'
-				if (this_x > 1) {
-					let cell_left = data_grid[this_x - 1][this_y];
-					if (cell_left.element_type == 'symbol') {
-						candidate[3] = true;
-					}
-				}
-
-				// ...look 'left'
-				if (this_y > 1) {
-					let cell_left = data_grid[this_x][this_y - 1];
-					if (cell_left.element_type == 'symbol') {
-						candidate[3] = true;
-					}
-				}
-
-				// ...look 'down'
-				if (this_x < data_grid.length - 1) {
-					let cell_down = data_grid[this_x + 1][this_y];
-					if (cell_down.element_type == 'symbol') {
-						candidate[3] = true;
-					}
-				}
-
-				// ...look 'up and right'
-				if (this_x > 1 && this_y < data_grid[0].length - 1) {
-					let cell_up_and_right = data_grid[this_x - 1][this_y + 1];
-					if (cell_up_and_right.element_type == 'symbol') {
-						candidate[3] = true;
-					}
-				}
-
-				// ...look 'up and left'
-				if (this_x > 1 && this_y > 1) {
-					let cell_up_and_left = data_grid[this_x - 1][this_y - 1];
-					if (cell_up_and_left.element_type == 'symbol') {
-						candidate[3] = true;
-					}
-				}
-
-				// ...look 'down and left'
-				if (this_x < data_grid.length - 1 && this_y > 1) {
-					let target_cell = data_grid[this_x + 1][this_y - 1];
-					if (target_cell.element_type == 'symbol') {
-						candidate[3] = true;
-					}
-				}
-
-				// ...look 'down and right'
-				if (this_x < data_grid.length - 1 && this_y < data_grid[0].length - 1) {
-					let target_cell = data_grid[this_x + 1][this_y + 1];
-					if (target_cell.element_type == 'symbol') {
-						candidate[3] = true;
-					}
+			// look "left"
+			if (x > 0) {
+				target_cell = data_grid[y][x - 1];
+				if (target_cell.element_type == 'symbol') {
+					cell.element_type = 'part';
 				}
 			}
-		});
 
-		// console.log(part_candidates);
-		identify_parts_on_grid();
+			// look "right"
+			if (x < max_x) {
+				target_cell = data_grid[y][x + 1];
+				if (target_cell.element_type == 'symbol') {
+					cell.element_type = 'part';
+				}
+			}
+
+			// look "down"
+			if (y < max_y) {
+				target_cell = data_grid[y + 1][x];
+				if (target_cell.element_type == 'symbol') {
+					cell.element_type = 'part';
+				}
+			}
+
+			// look "up"
+			if (y > 0) {
+				target_cell = data_grid[y - 1][x];
+				if (target_cell.element_type == 'symbol') {
+					cell.element_type = 'part';
+				}
+			}
+
+			// look "up and left"
+			if (x > 0 && y > 0) {
+				target_cell = data_grid[y - 1][x - 1];
+				if (target_cell.element_type == 'symbol') {
+					cell.element_type = 'part';
+				}
+			}
+
+			// look "up and right"
+			if (x < max_x && y > 0) {
+				target_cell = data_grid[y - 1][x + 1];
+				if (target_cell.element_type == 'symbol') {
+					cell.element_type = 'part';
+				}
+			}
+
+			// look "down and left"
+			if (x > 0 && y < max_y) {
+				target_cell = data_grid[y + 1][x - 1];
+				if (target_cell.element_type == 'symbol') {
+					cell.element_type = 'part';
+				}
+			}
+
+			// look "down and right"
+			if (x < max_x && y < max_y) {
+				target_cell = data_grid[y + 1][x + 1];
+				if (target_cell.element_type == 'symbol') {
+					cell.element_type = 'part';
+				}
+			}
+		}
 	};
 
-	let identify_parts_on_grid = () => {
-		part_candidates.forEach((candidate) => {
-			if (candidate[3]) {
-				for (let i = 0; i < candidate[0].toString().length; i++) {
-					let this_x = candidate[2];
-					let this_y = candidate[1] + i;
-					let this_cell = data_grid[this_x][this_y];
-					this_cell.element_type = 'part';
+	// after finding cells that are adjacent to symbols, extend the 'is_part' designation to other integers in that candidate
+	const extend_parts = () => {
+		// look at all cells which are candidates; if a horizontally adjacent cell is a part, then so am i
+		for (let i = 0; i < 10; i++) {
+			for (let y = data_grid.length - 1; y >= 0; y--) {
+				for (let x = data_grid[0].length - 1; x >= 0; x--) {
+					let this_cell = data_grid[y][x];
+					if (this_cell.element_type == 'candidate') {
+						// look left
+						if (x > 0) {
+							let target_cell = data_grid[y][x - 1];
+							if (target_cell.element_type == 'part') {
+								this_cell.element_type = 'part';
+							}
+						}
+
+						// look leftright
+						if (x < max_x) {
+							let target_cell = data_grid[y][x + 1];
+							if (target_cell.element_type == 'part') {
+								this_cell.element_type = 'part';
+							}
+						}
+					}
 				}
 			}
-		});
+		}
+	};
+
+	const calculate_parts_sum = () => {
+		let parts_sum = 0;
+		let multiplier = 1;
+		let this_cell, last_cell; // the cell being inspected; the previous cell inspected
+
+		// loop from end to beginning and sum up the values of the parts
+		for (let y = data_grid.length - 1; y >= 0; y--) {
+			for (let x = data_grid[0].length - 1; x >= 0; x--) {
+				this_cell = data_grid[y][x];
+				if (this_cell.element_type == 'part' && this_cell.value) {
+					if (last_cell && last_cell.element_type == 'part') {
+						multiplier *= 10;
+					} else {
+						multiplier = 1;
+					}
+					parts_sum += multiplier * parseInt(this_cell.value);
+				}
+				last_cell = this_cell;
+			}
+		}
+
+		return parts_sum;
 	};
 
 	const parse = () => {
-        answer = 0;
+		answer = 0;
 		parse_input_to_grid();
-		find_part_candidates();
-		// console.log(part_candidates)
-		// console.log(data_grid)
-		test_part_candidates();
-    
-		// loop across part_candidates and add values of all that are parts (is_part=true) to answer
-		part_candidates.forEach((part) => {
-			if (part[3]) {
-				answer += parseInt(part[0]);
-			}
-		});
+		find_parts();
+		extend_parts();
+		answer = calculate_parts_sum();
 	};
 
 	// on page load, run program
@@ -193,9 +209,10 @@
 
 <h3>Parsed Data</h3>
 <div id="data_grid">
-	{#each data_grid as row, index_y}
-		{#each row as cell, index_x}
-			<div bind:this={data_grid[index_x][index_y].dom_element} class={cell.element_type}>
+	{#each data_grid as row, y}
+		{#each row as cell, x}
+			<div bind:this={data_grid[y][x].dom_element} class={cell.element_type}>
+				<!-- {cell.value} -->
 				{cell.value}
 			</div>
 		{/each}
@@ -214,10 +231,10 @@
 <style lang="scss">
 	#data_grid {
 		font-family: monospace;
-        font-size:8px;
+		font-size: 8px;
 		div {
 			display: inline-block;
-			padding: 0.2rem 0.5rem;
+			padding: 0.2rem 0.1rem;
 			color: white;
 
 			&.unknown {
